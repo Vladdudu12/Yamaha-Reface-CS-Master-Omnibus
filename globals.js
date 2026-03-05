@@ -204,3 +204,8 @@ let tGate = {
 // --- EXTERNAL MIDI CLOCK STATE ---
 let lastClockTick = 0;
 let clockDeltas = []; // Stores the time of the last 24 pulses to calculate a smooth average
+
+// --- LISSAJOUS SCOPE STATE ---
+let splitterNode = null;
+let analyserL = null;
+let analyserR = null;

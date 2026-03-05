@@ -683,6 +683,9 @@ function initLab() {
         generateReverb();
 
         document.getElementById('note-out').innerText = "RDY";
+        setTimeout(() => {
+            if (typeof startOscilloscope === "function") startOscilloscope();
+        }, 100);
     }).catch(e => alert("Please allow Mic access for FX & Scope."));
 }
 
@@ -760,6 +763,27 @@ function buildFXRouting() {
 
     dryGain.gain.value = 1.0;
     mainSignalSource.connect(dryGain);
+    // --- STEREO LISSAJOUS ROUTING ---
+    // 1. Create the splitters and analysers if they don't exist yet
+    if (!splitterNode) {
+        splitterNode = audioCtx.createChannelSplitter(2);
+        analyserL = audioCtx.createAnalyser();
+        analyserR = audioCtx.createAnalyser();
+
+        // Use a large buffer for smooth, continuous geometric lines
+        analyserL.fftSize = 2048;
+        analyserR.fftSize = 2048;
+    }
+
+    try { mainSignalSource.disconnect(splitterNode); } catch (e) { }
+
+    // 2. Route the final master audio into the splitter
+    mainSignalSource.connect(splitterNode);
+
+    // 3. Send the Left ear to Analyser L, and the Right ear to Analyser R
+    splitterNode.connect(analyserL, 0);
+    splitterNode.connect(analyserR, 1);
+
     mainSignalSource.connect(analyser);
 
     if (fxState.delay) {
@@ -776,6 +800,8 @@ function buildFXRouting() {
         convolverNode.connect(verbMix);
         verbMix.connect(audioCtx.destination);
     }
+
+
     updateFX();
 }
 
@@ -1182,4 +1208,55 @@ function buildGateCircuit() {
     if (!audioCtx) return;
     tGate.gainNode = audioCtx.createGain();
     tGate.gainNode.gain.value = 1.0; // Default to full volume
+}
+
+// --- LISSAJOUS VECTOR SCOPE ---
+function startOscilloscope() {
+    // 1. Pointing to YOUR exact canvas ID
+    const cvs = document.getElementById('osc-canvas');
+    if (!cvs || !analyserL || !analyserR) {
+        console.warn("Waiting for audio nodes to build...");
+        return; 
+    }
+    
+    const ctx = cvs.getContext('2d');
+    const bufferLength = analyserL.frequencyBinCount;
+    const dataL = new Uint8Array(bufferLength);
+    const dataR = new Uint8Array(bufferLength);
+
+    function draw() {
+        requestAnimationFrame(draw);
+        analyserL.getByteTimeDomainData(dataL);
+        analyserR.getByteTimeDomainData(dataR);
+
+        // Read your existing GAIN slider to make the shapes bigger/smaller!
+        const gainSlider = document.getElementById('scope-gain');
+        const gain = gainSlider ? parseFloat(gainSlider.value) / 2 : 1;
+
+        // Draw a semi-transparent black background to create "phosphor trails"
+        ctx.fillStyle = 'rgba(10, 10, 10, 0.2)'; 
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'var(--match-green)'; 
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'var(--match-green)';
+        ctx.beginPath();
+
+        for (let i = 0; i < bufferLength; i++) {
+            // Left ear controls X (Horizontal), Right ear controls Y (Vertical)
+            // We apply your gain slider math here to scale the vector from the center
+            let normL = ((dataL[i] / 128.0) - 1) * gain; 
+            let normR = ((dataR[i] / 128.0) - 1) * gain; 
+
+            const x = (normL + 1) * (cvs.width / 2);
+            const y = (-normR + 1) * (cvs.height / 2); // Inverted so positive is up
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+    
+    draw(); // Kick off the infinite drawing loop!
 }
