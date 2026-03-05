@@ -115,6 +115,132 @@ if (navigator.requestMIDIAccess) {
                 }
 
                 const isNoteOn = (cmd === 0x90 && d2 > 0);
+
+                // --- SYNTHESIA HIT DETECTION ---
+                if (isNoteOn && cascade.isPlaying) {
+                    const hitMargin = 30; // Pixels above/below the line
+                    const keyWidth = 800 / 24; // Canvas width / 24 keys
+                    
+                    for (let i = cascade.fallingNotes.length - 1; i >= 0; i--) {
+                        let n = cascade.fallingNotes[i];
+                        
+                        // Did you hit the right pitch AND is it in the Hit Zone?
+                        if (n.pitch === d1 && Math.abs(n.y - cascade.hitZoneY) < hitMargin) {
+                            // Perfect Hit!
+                            cascade.score += 100;
+                            document.getElementById('cascade-score').innerText = cascade.score;
+                            
+                            // Calculate X position for the explosion
+                            let xPos = (n.pitch - 48) * keyWidth + (keyWidth/2);
+                            spawnExplosion(xPos, cascade.hitZoneY);
+                            
+                            // Destroy the block
+                            cascade.fallingNotes.splice(i, 1);
+                            break; 
+                        }
+                    }
+                }
+
+                // --- THE REPLICANT HIT DETECTION ---
+                if (isNoteOn && typeof replicant !== 'undefined' && replicant.state === 'listening') {
+                    // Check the note the player just pressed against the sequence memory
+                    let targetNote = replicant.sequence[replicant.playerStep];
+                    
+                    if (d1 === targetNote) {
+                        // CORRECT NOTE!
+                        replicant.playerStep++;
+                        
+                        // Did they finish the whole sequence?
+                        if (replicant.playerStep >= replicant.sequence.length) {
+                            replicant.state = 'idle'; // Lock the board
+                            replicant.level++;
+                            
+                            document.getElementById('rep-level').innerText = "LVL " + replicant.level;
+                            document.getElementById('rep-status').innerText = "✅ SEQUENCE ACCEPTED.";
+                            document.getElementById('rep-status').style.color = "var(--match-green)";
+                            
+                            // Start the next round after a short celebration pause
+                            setTimeout(nextReplicantRound, 1500);
+                        }
+                    } else {
+                        // WRONG NOTE! Game Over.
+                        replicant.state = 'idle';
+                        document.getElementById('rep-status').innerText = "❌ CRITICAL FAILURE. GAME OVER.";
+                        document.getElementById('rep-status').style.color = "red";
+                        document.getElementById('rep-status').style.textShadow = "0 0 10px red";
+                    }
+                }
+
+                // --- SIGHT-READING HIT DETECTION ---
+                if (isNoteOn && typeof sightReader !== 'undefined' && sightReader.isPlaying) {
+                    const targetX = 100; // The yellow laser line
+                    
+                    for (let i = sightReader.notes.length - 1; i >= 0; i--) {
+                        let n = sightReader.notes[i];
+                        
+                        // If the note you pressed matches the pitch on screen...
+                        if (d1 === n.pitch) {
+                            // And it is close to the Target Zone...
+                            if (n.x < targetX + 150 && n.x > targetX - 50) {
+                                // PERFECT HIT!
+                                sightReader.score += 50;
+                                document.getElementById('staff-score').innerText = sightReader.score;
+                                
+                                // Destroy the note so it disappears from the sheet music
+                                sightReader.notes.splice(i, 1);
+                                break; 
+                            }
+                        }
+                    }
+                }
+
+                // --- TIMING TRAINER HIT DETECTION ---
+                if (isNoteOn && typeof timingTrainer !== 'undefined' && timingTrainer.on) {
+                    const now = performance.now();
+                    
+                    // Did you play closer to the UPCOMING beat, or the PREVIOUS beat?
+                    const timeToNext = timingTrainer.nextBeat - now;
+                    const timeToPrev = now - (timingTrainer.nextBeat - timingTrainer.interval);
+                    
+                    let differenceMs = 0;
+                    let label = "";
+                    let color = "";
+                    
+                    if (timeToNext < timeToPrev) {
+                        differenceMs = timeToNext; 
+                        label = "EARLY";
+                    } else {
+                        differenceMs = timeToPrev; 
+                        label = "LATE";
+                    }
+                    
+                    // Ignore random notes played entirely off-beat
+                    if (differenceMs < (timingTrainer.interval / 2)) {
+                        const ms = Math.round(differenceMs);
+                        
+                        // Judge the precision!
+                        if (ms < 20) { 
+                            color = "#00ffcc"; // Neon Green
+                            label = "PERFECT!"; 
+                        } else if (ms < 50) { 
+                            color = "#ffcc00"; // Yellow
+                        } else { 
+                            color = "#ff3333"; // Red
+                        }
+                        
+                        // Update the screen
+                        const fb = document.getElementById('timing-feedback');
+                        fb.innerText = ms < 20 ? label : `${ms}ms ${label}`;
+                        fb.style.color = color;
+                        fb.style.textShadow = `0 0 15px ${color}`;
+                        
+                        // Flash the border of the box to match the color
+                        const displayBox = document.getElementById('timing-display');
+                        displayBox.style.borderColor = color;
+                        setTimeout(() => displayBox.style.borderColor = '#333', 150);
+                    }
+                }
+
                 const isNoteOff = (cmd === 0x80 || (cmd === 0x90 && d2 === 0));
 
                 // Modulator: Velocity to Filter
@@ -602,6 +728,23 @@ setInterval(() => {
             // Snap the volume to 1.0 (ON) or 0.0 (OFF) 
             // We use a tiny 0.015s glide so the speakers don't "pop" or click aggressively
             tGate.gainNode.gain.setTargetAtTime(isActive ? 1.0 : 0.0, audioCtx.currentTime, 0.015);
+        }
+    }
+
+    // --- TIMING TRAINER CLOCK ---
+    if (typeof timingTrainer !== 'undefined' && timingTrainer.on) {
+        if (now >= timingTrainer.nextBeat) {
+            // Flash the screen violently white to mark the beat!
+            const flash = document.getElementById('timing-flash');
+            if (flash) {
+                flash.style.opacity = '1';
+                setTimeout(() => flash.style.opacity = '0', 50); // Fade out instantly
+            }
+            
+            // Calculate the exact time of the next beat
+            timingTrainer.bpm = parseInt(document.getElementById('timing-bpm').value);
+            timingTrainer.interval = (60 / timingTrainer.bpm) * 1000;
+            timingTrainer.nextBeat += timingTrainer.interval;
         }
     }
 }, 16);
@@ -1260,3 +1403,151 @@ function startOscilloscope() {
     
     draw(); // Kick off the infinite drawing loop!
 }
+
+// --- SYNTHESIA CASCADE ENGINE ---
+let cascadeFrameCount = 0;
+
+function cascadeLoop() {
+    requestAnimationFrame(cascadeLoop);
+    const cvs = document.getElementById('cascade-canvas');
+    if (!cvs || !cascade.isPlaying) return;
+    const ctx = cvs.getContext('2d');
+    
+    // Clear screen with a slight fade for motion blur
+    ctx.fillStyle = 'rgba(5, 5, 5, 0.4)';
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+    // Draw the "Hit Zone" Laser Line at the bottom
+    ctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, cascade.hitZoneY);
+    ctx.lineTo(cvs.width, cascade.hitZoneY);
+    ctx.stroke();
+
+    // 1. Spawner: Drop new notes from the queue
+    cascadeFrameCount++;
+    if (cascade.songQueue.length > 0) {
+        if (cascadeFrameCount >= cascade.songQueue[0].delay) {
+            let nextNote = cascade.songQueue.shift();
+            cascade.fallingNotes.push({
+                pitch: nextNote.pitch,
+                y: -20, // Start above the screen
+                hit: false
+            });
+            cascadeFrameCount = 0; // Reset timer
+        }
+    } else if (cascade.fallingNotes.length === 0 && cascade.particles.length === 0) {
+        cascade.isPlaying = false; // Song is over!
+    }
+
+    // 2. Physics & Drawing: Move notes down
+    const keyWidth = cvs.width / 24; // Assuming a 2-octave view
+
+    for (let i = cascade.fallingNotes.length - 1; i >= 0; i--) {
+        let n = cascade.fallingNotes[i];
+        n.y += cascade.speed;
+
+        // Map the MIDI pitch (48-72) to an X coordinate on the screen
+        let xPos = (n.pitch - 48) * keyWidth; 
+
+        // Draw the falling block
+        ctx.fillStyle = n.y > cascade.hitZoneY - 20 && n.y < cascade.hitZoneY + 20 ? '#ffffff' : '#00ffcc';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#00ffcc';
+        ctx.fillRect(xPos, n.y, keyWidth - 2, 20);
+        ctx.shadowBlur = 0; // Reset
+
+        // If it falls off the bottom (Missed!)
+        if (n.y > cvs.height) {
+            cascade.fallingNotes.splice(i, 1);
+            cascade.score = Math.max(0, cascade.score - 50); // Penalty!
+            document.getElementById('cascade-score').innerText = cascade.score;
+        }
+    }
+
+    // 3. Draw Particle Explosions
+    for (let i = cascade.particles.length - 1; i >= 0; i--) {
+        let p = cascade.particles[i];
+        p.x += p.vx; p.y += p.vy; p.life -= 0.05;
+        if (p.life <= 0) { cascade.particles.splice(i, 1); continue; }
+        
+        ctx.fillStyle = `rgba(0, 255, 204, ${p.life})`;
+        ctx.fillRect(p.x, p.y, 4, 4);
+    }
+}
+// Start the passive loop
+cascadeLoop();
+
+
+// --- SIGHT-READING ENGINE ---
+function staffLoop() {
+    requestAnimationFrame(staffLoop);
+    const cvs = document.getElementById('staff-canvas');
+    if (!cvs || !sightReader.isPlaying) return;
+    const ctx = cvs.getContext('2d');
+    
+    // Clear the paper
+    ctx.fillStyle = '#f4f4f4';
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+    // 1. Draw the 5 Staff Lines (E4, G4, B4, D5, F5)
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    const lineYs = [130, 100, 70, 40, 10]; 
+    lineYs.forEach(y => {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cvs.width, y); ctx.stroke();
+    });
+
+    // 2. Draw the "Target Zone" Laser on the left
+    ctx.strokeStyle = 'rgba(255, 204, 0, 0.8)';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(100, 0); ctx.lineTo(100, cvs.height); ctx.stroke();
+
+    // 3. Draw a Treble Clef symbol on the left
+    ctx.fillStyle = '#111';
+    ctx.font = '80px serif';
+    ctx.fillText('𝄞', 20, 115);
+
+    // 4. Note Spawner (Spawn a new note every 120 frames)
+    sightReader.frameCount++;
+    if (sightReader.frameCount > 120) {
+        // Pick a random note from our Treble Map
+        const naturalNotes = Object.keys(trebleMap);
+        const randomPitch = naturalNotes[Math.floor(Math.random() * naturalNotes.length)];
+        
+        sightReader.notes.push({
+            pitch: parseInt(randomPitch),
+            x: cvs.width + 50, // Start slightly off-screen to the right
+            y: trebleMap[randomPitch]
+        });
+        sightReader.frameCount = 0;
+    }
+
+    // 5. Draw and move the notes
+    for (let i = sightReader.notes.length - 1; i >= 0; i--) {
+        let n = sightReader.notes[i];
+        n.x -= sightReader.speed; // Move Left!
+
+        // Draw Ledger Line for Middle C (60)
+        if (n.pitch === 60) {
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(n.x - 25, n.y); ctx.lineTo(n.x + 25, n.y); ctx.stroke();
+        }
+
+        // Draw the Musical Note (Oval)
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.ellipse(n.x, n.y, 15, 10, -Math.PI / 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // If it passes the left edge without being played (Missed!)
+        if (n.x < -50) {
+            sightReader.notes.splice(i, 1);
+            sightReader.score = Math.max(0, sightReader.score - 10);
+            document.getElementById('staff-score').innerText = sightReader.score;
+        }
+    }
+}
+// Start passive loop
+staffLoop();

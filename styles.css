@@ -9,6 +9,9 @@
     --slider-track: #ccc;
     --track-rec: #e74c3c;
 }
+canvas {
+    display: block;
+}
 
 body {
     background: #cfcfcf;

@@ -186,40 +186,46 @@
 
         <div class="exp-box">
             <h3 class="exp-title" style="color:#f1c40f; border-bottom-color:#f1c40f;">🎛️ MPC BEAT REPEATER</h3>
-            
+
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;">
-                <button class="btn-clr" style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;" 
+                <button class="btn-clr"
+                    style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;"
                     onmousedown="triggerStutter(4)" onmouseup="releaseStutter()" onmouseleave="releaseStutter()">
                     1/4 BEAT
                 </button>
-                <button class="btn-clr" style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;" 
+                <button class="btn-clr"
+                    style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;"
                     onmousedown="triggerStutter(8)" onmouseup="releaseStutter()" onmouseleave="releaseStutter()">
                     1/8 BEAT
                 </button>
-                <button class="btn-clr" style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;" 
+                <button class="btn-clr"
+                    style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;"
                     onmousedown="triggerStutter(16)" onmouseup="releaseStutter()" onmouseleave="releaseStutter()">
                     1/16 BEAT
                 </button>
-                <button class="btn-clr" style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;" 
+                <button class="btn-clr"
+                    style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;"
                     onmousedown="triggerStutter(32)" onmouseup="releaseStutter()" onmouseleave="releaseStutter()">
                     1/32 MACHINE GUN
                 </button>
             </div>
-            
+
             <p style="font-size:9px; color:#aaa; text-align:center; margin-top:10px; line-height:1.3;">
                 CLICK AND HOLD to capture and stutter the audio. Release to drop the beat. Syncs to Arpeggiator BPM.
             </p>
         </div>
 
         <div class="exp-box">
-            <h3 class="exp-title" style="color:var(--match-green); border-bottom-color:var(--match-green);">🚁 TRANCE-GATE</h3>
+            <h3 class="exp-title" style="color:var(--match-green); border-bottom-color:var(--match-green);">🚁
+                TRANCE-GATE</h3>
             <div class="ctrl-row">
                 <button id="btn-tgate" class="tog-btn" onclick="toggleTGate()">TRANCE-GATE: OFF</button>
             </div>
-            
-            <div id="tgate-grid" style="display:grid; grid-template-columns: repeat(16, 1fr); gap:2px; margin-top:10px;">
-                </div>
-            
+
+            <div id="tgate-grid"
+                style="display:grid; grid-template-columns: repeat(16, 1fr); gap:2px; margin-top:10px;">
+            </div>
+
             <p style="font-size:9px; color:#aaa; text-align:center; margin-top:10px; line-height:1.3;">
                 Hold a sustained chord. Green steps let audio through; dark steps mute it. Syncs to BPM.
             </p>
@@ -590,6 +596,98 @@
                     this step)</span>
             </div>
         </div>
+
+        <div class="exp-box" style="margin-bottom: 20px;">
+            <div class="ctrl-row">
+                <h3 class="exp-title" style="color:#00ffcc; border-bottom-color:#00ffcc;">🎹 PIANO CASCADE</h3>
+                <span id="cascade-score"
+                    style="color:#00ffcc; font-size:24px; font-weight:bold; text-shadow: 0 0 10px #00ffcc;">0000</span>
+            </div>
+
+            <div class="ctrl-row" style="margin-top:10px; margin-bottom:10px;">
+                <span style="color:#00ffcc;">DIFFICULTY</span>
+                <select id="cascade-diff"
+                    style="background:#222; color:#00ffcc; border:1px solid #00ffcc; padding:4px; font-weight:bold; border-radius:4px; width: 60%;">
+                    <option value="easy">🟩 EASY (Practice Tempo)</option>
+                    <option value="normal" selected>🟨 NORMAL (Arcade Speed)</option>
+                    <option value="hard">🟥 HARD (Lightning Fast)</option>
+                </select>
+            </div>
+
+            <div class="ctrl-row">
+                <button class="btn-clr" onclick="startCascade()"
+                    style="background:#00ffcc; color:black; font-weight:bold; width:100%;">
+                    ▶️ START TRACK
+                </button>
+            </div>
+
+            <canvas id="cascade-canvas" width="800" height="400"
+                style="background:#050505; border: 2px solid #222; border-radius: 8px; margin-top: 10px; width: 100%; box-shadow: inset 0 0 30px black;"></canvas>
+        </div>
+
+        <div class="exp-box" style="margin-bottom: 20px;">
+            <div class="ctrl-row">
+                <h3 class="exp-title" style="color:#ff00ff; border-bottom-color:#ff00ff;">🧠 THE REPLICANT</h3>
+                <span id="rep-level"
+                    style="color:#ff00ff; font-size:24px; font-weight:bold; text-shadow: 0 0 10px #ff00ff;">LVL
+                    1</span>
+            </div>
+
+            <div id="rep-status"
+                style="text-align:center; font-weight:bold; color:#888; margin:15px 0; font-size:16px; letter-spacing: 2px; height: 20px;">
+                PRESS START TO BEGIN
+            </div>
+
+            <button class="btn-clr" onclick="startReplicant()"
+                style="background:#ff00ff; color:white; font-weight:bold; width:100%;">
+                ▶️ INITIATE SEQUENCE
+            </button>
+        </div>
+
+        <div class="exp-box" style="margin-bottom: 20px;">
+            <div class="ctrl-row">
+                <h3 class="exp-title" style="color:#ffcc00; border-bottom-color:#ffcc00;">🎼 SIGHT-READER</h3>
+                <span id="staff-score" style="color:#ffcc00; font-size:24px; font-weight:bold; text-shadow: 0 0 10px #ffcc00;">0</span>
+            </div>
+            
+            <div class="ctrl-row" style="margin-top:10px;">
+                <button class="btn-clr" onclick="startSightReader()" style="background:#ffcc00; color:black; font-weight:bold; width:100%;">
+                    ▶️ START INFINITE SCROLL
+                </button>
+            </div>
+            
+            <canvas id="staff-canvas" width="800" height="200" style="background:#f4f4f4; border: 2px solid #222; border-radius: 8px; margin-top: 10px; width: 100%; display: block;"></canvas>
+            
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:10px; line-height:1.3;">
+                Read the note on the Treble Clef and play it before it hits the left wall.
+            </p>
+        </div>
+
+        <div class="exp-box" style="margin-bottom: 20px;">
+            <div class="ctrl-row">
+                <h3 class="exp-title" style="color:#ff3333; border-bottom-color:#ff3333;">⏱️ TIMING TRAINER</h3>
+            </div>
+            
+            <div class="ctrl-row" style="margin-top:10px;">
+                <span style="color:#ff3333;">TRAINING BPM</span>
+                <input type="range" id="timing-bpm" min="60" max="240" value="100" oninput="document.getElementById('timing-bpm-val').innerText=this.value">
+                <span id="timing-bpm-val" style="color:white; width:30px; text-align:right;">100</span>
+            </div>
+            
+            <div class="ctrl-row" style="margin-top:10px;">
+                <button class="btn-clr" onclick="toggleTimingTrainer()" id="btn-timing" style="background:#ff3333; color:white; font-weight:bold; width:100%;">
+                    ▶️ START METRONOME
+                </button>
+            </div>
+            
+            <div id="timing-display" style="height:100px; background:#111; margin-top:10px; border-radius:8px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; border:2px solid #333; transition: border-color 0.1s;">
+                <div id="timing-flash" style="position:absolute; top:0; left:0; width:100%; height:100%; background:white; opacity:0; transition:opacity 0.05s;"></div>
+                
+                <div id="timing-feedback" style="position:relative; z-index:2; font-size:32px; font-weight:bold; color:#555; font-family:monospace; letter-spacing: 2px;">
+                    WAITING...
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="edu-panel">
@@ -627,6 +725,9 @@
                     <option value="Dom7">Dominant 7th</option>
                 </select>
             </div>
+
+
+
             <div class="keyboard" id="keyboard"></div>
             <div id="chord-display">PLAY A CHORD</div>
         </div>

@@ -209,3 +209,66 @@ let clockDeltas = []; // Stores the time of the last 24 pulses to calculate a sm
 let splitterNode = null;
 let analyserL = null;
 let analyserR = null;
+
+// --- SYNTHESIA CASCADE STATE ---
+let cascade = {
+    isPlaying: false,
+    speed: 3, // How fast the notes fall
+    score: 0,
+    fallingNotes: [], // Notes currently on screen
+    songQueue: [], // Notes waiting to drop
+    hitZoneY: 350, // The physical line they must cross to be hit
+    particles: [] // For the explosion effects!
+};
+
+// A simple sequence: { pitch: MIDI note, delay: frames to wait before dropping }
+const demoSong = [
+    { pitch: 48, delay: 60 }, // C3
+    { pitch: 52, delay: 60 }, // E3
+    { pitch: 55, delay: 60 }, // G3
+    { pitch: 59, delay: 60 }, // B3
+    { pitch: 60, delay: 60 }, // C4
+    { pitch: 59, delay: 60 }, // B3
+    { pitch: 55, delay: 60 }, // G3
+    { pitch: 52, delay: 60 }  // E3
+];
+
+// --- THE REPLICANT STATE ---
+let replicant = {
+    state: 'idle', // 'idle', 'playing' (ghost's turn), or 'listening' (your turn)
+    sequence: [],  // The array of MIDI notes the ghost generated
+    playerStep: 0, // Which note you are currently trying to guess
+    level: 1
+};
+
+// --- SIGHT-READING STATE & MATH ---
+let sightReader = {
+    isPlaying: false,
+    score: 0,
+    speed: 2,
+    notes: [], // Notes currently scrolling on screen
+    frameCount: 0
+};
+
+// Maps MIDI notes (C4 to C6) to their physical Y-position on a 200px tall canvas
+const trebleMap = {
+    60: 160, // C4 (Middle C - Needs Ledger Line)
+    62: 145, // D4
+    64: 130, // E4 (Bottom Line)
+    65: 115, // F4
+    67: 100, // G4
+    69: 85,  // A4
+    71: 70,  // B4 (Middle Line)
+    72: 55,  // C5
+    74: 40,  // D5
+    76: 25,  // E5 (Top Space)
+    77: 10   // F5 (Top Line)
+};
+
+// --- TIMING TRAINER STATE ---
+let timingTrainer = {
+    on: false,
+    bpm: 100,
+    interval: 600, // Milliseconds between beats
+    nextBeat: 0
+};

@@ -1294,3 +1294,155 @@ function toggleTGate() {
         tGate.currentStep = -1;
     }
 }
+
+// --- SYNTHESIA UI LOGIC ---
+function startCascade() {
+    // 1. Reset the board
+    cascade.score = 0;
+    const scoreEl = document.getElementById('cascade-score');
+    if (scoreEl) scoreEl.innerText = "0000";
+    
+    cascade.fallingNotes = [];
+    cascade.particles = [];
+    
+    // 2. Read the Difficulty Dropdown
+    const diffEl = document.getElementById('cascade-diff');
+    const diff = diffEl ? diffEl.value : "normal";
+    
+    let delayMult = 1.0; // The time multiplier between notes
+    
+    // 3. Apply the Physics & Tempo changes
+    if (diff === "easy") {
+        cascade.speed = 1.5; // Gravity is cut in half
+        delayMult = 2.0;     // Notes wait twice as long before spawning
+    } else if (diff === "hard") {
+        cascade.speed = 6.0; // Gravity is doubled!
+        delayMult = 0.5;     // Notes spawn twice as fast
+    } else {
+        cascade.speed = 3.0; // Standard Gravity
+        delayMult = 1.0;     // Standard Tempo
+    }
+    
+    // 4. Rebuild the song with the new tempo applied!
+    let scaledSong = demoSong.map(note => ({
+        pitch: note.pitch,
+        delay: note.delay * delayMult
+    }));
+    
+    // Load the scaled song into the queue (repeated 3 times for length)
+    cascade.songQueue = [...scaledSong, ...scaledSong, ...scaledSong]; 
+    cascadeFrameCount = 0;
+    cascade.isPlaying = true;
+}
+
+// Function to spawn particles when you hit a note
+function spawnExplosion(x, y) {
+    for(let i=0; i<15; i++) {
+        cascade.particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 1.0
+        });
+    }
+}
+
+// --- THE REPLICANT ENGINE ---
+
+function startReplicant() {
+    if (!midiOut) { alert("Please click INIT SENSORS first so the Ghost can connect to your synth!"); return; }
+    
+    replicant.sequence = [];
+    replicant.level = 1;
+    document.getElementById('rep-level').innerText = "LVL 1";
+    
+    // Start the first round!
+    nextReplicantRound();
+}
+
+function nextReplicantRound() {
+    replicant.state = 'playing';
+    replicant.playerStep = 0;
+    
+    const status = document.getElementById('rep-status');
+    status.innerText = "🤖 GHOST IS PLAYING...";
+    status.style.color = "yellow";
+    status.style.textShadow = "0 0 10px yellow";
+
+    // 1. Pick a random musical note based on your Theory Engine scale!
+    let sRoot = parseInt(document.getElementById('scale-root').value) || 0;
+    let sType = document.getElementById('scale-type').value || 'Pent Minor';
+    let intervals = scaleDict[sType] || scaleDict['Major'];
+    
+    // Pick a random interval and keep it within a nice 2-octave range (starting at C3 = 48)
+    let baseMidi = 48 + sRoot; 
+    let randomInterval = intervals[Math.floor(Math.random() * intervals.length)];
+    let randomOctave = Math.floor(Math.random() * 2) * 12; // 0 or +12
+    
+    // Add the new note to the sequence
+    replicant.sequence.push(baseMidi + randomInterval + randomOctave);
+
+    // 2. The Playback Loop
+    let i = 0;
+    
+    function playNextNote() {
+        // If the ghost is done playing the sequence, switch to the player's turn!
+        if (i >= replicant.sequence.length) {
+            replicant.state = 'listening';
+            status.innerText = "🟢 YOUR TURN!";
+            status.style.color = "#00ffcc";
+            status.style.textShadow = "0 0 10px #00ffcc";
+            return;
+        }
+
+        let note = replicant.sequence[i];
+        
+        // Blast the note TO your physical synthesizer!
+        midiOut.send([0x90, note, 100]); // Note ON
+        
+        // Light up the virtual keyboard on the screen
+        let keyEl = document.getElementById('key-' + note);
+        if (keyEl) keyEl.classList.add('active');
+
+        // Turn the note off after 400 milliseconds
+        setTimeout(() => {
+            midiOut.send([0x80, note, 0]); // Note OFF
+            if (keyEl) keyEl.classList.remove('active');
+            
+            i++;
+            // Wait 200ms before playing the next note
+            setTimeout(playNextNote, 200); 
+        }, 400);
+    }
+
+    // Give the player a 1-second breather before the sequence starts
+    setTimeout(playNextNote, 1000);
+}
+
+// --- SIGHT-READING UI LOGIC ---
+function startSightReader() {
+    sightReader.score = 0;
+    document.getElementById('staff-score').innerText = "0";
+    sightReader.notes = [];
+    sightReader.frameCount = 0;
+    sightReader.isPlaying = true;
+}
+
+// --- TIMING TRAINER UI LOGIC ---
+function toggleTimingTrainer() {
+    if (!audioCtx) { alert("Please click INIT SENSORS first!"); return; }
+    
+    timingTrainer.on = !timingTrainer.on;
+    const btn = document.getElementById('btn-timing');
+    btn.innerText = timingTrainer.on ? "⏹️ STOP METRONOME" : "▶️ START METRONOME";
+    
+    if (timingTrainer.on) {
+        timingTrainer.bpm = parseInt(document.getElementById('timing-bpm').value);
+        timingTrainer.interval = (60 / timingTrainer.bpm) * 1000;
+        timingTrainer.nextBeat = performance.now() + timingTrainer.interval;
+        
+        document.getElementById('timing-feedback').innerText = "PLAY ON THE BEAT!";
+        document.getElementById('timing-feedback').style.color = "#888";
+        document.getElementById('timing-feedback').style.textShadow = "none";
+    }
+}
