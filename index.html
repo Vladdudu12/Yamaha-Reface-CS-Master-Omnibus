@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reface CS - Master Omnibus (Modular Edition)</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>Reface CS Master Omnibus</h1>
+        <div id="midi-status">MIDI NOT DETECTED</div>
+    </header>
+
+    <div class="lab-panel">
+        <div class="scope-view">
+            <div class="lab-label">OSCILLOSCOPE</div><canvas id="osc-canvas"></canvas>
+            <div class="scope-controls">
+                <span>ZOOM</span><input type="range" id="scope-zoom" min="32" max="1024" value="512"
+                    style="-webkit-appearance:none; height:4px; background:#444; width:70px;">
+                <span>GAIN</span><input type="range" id="scope-gain" min="1" max="10" value="2" step="0.1"
+                    style="-webkit-appearance:none; height:4px; background:#444; width:70px;">
+                <span>POS</span><input type="range" id="scope-pos" min="-150" max="150" value="0"
+                    style="-webkit-appearance:none; height:4px; background:#444; width:70px;">
+                <button onclick="toggleFreeze()" id="freeze-btn"
+                    style="padding:4px 8px; background:#444; color:white; border:none; cursor:pointer;">FREEZE</button>
+            </div>
+        </div>
+        <div class="tuner-view">
+            <div class="note-display" id="note-out">--</div>
+            <div class="freq-display" id="freq-out">0.00 Hz</div>
+            <!-- <button onclick="initLab()"
+                style="margin-top:20px; background:var(--match-green); color:black; font-weight:bold; padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">⚡
+                INIT SENSORS</button> -->
+            <button onclick="initLab()"
+                style="margin-top:20px; background:var(--match-green); color:black; font-weight:bold; padding:8px 15px; border:none; border-radius:4px; cursor:pointer; box-shadow: 0 0 10px var(--match-green);">⚡
+                INIT SENSORS & FX</button>
+            <button id="master-rec-btn" onclick="toggleMasterRecord()"
+                style="margin-top:10px; background:#444; color:white; font-weight:bold; padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">⏺️
+                REC AUDIO</button>
+        </div>
+    </div>
+
+    <div class="exp-panel">
+        <div class="exp-box">
+            <h3 class="exp-title">🕹️ ADVANCED ARPEGGIATOR</h3>
+            <div class="ctrl-row">
+                <button id="btn-arp" class="tog-btn" onclick="toggleArp()">ARP: OFF</button>
+                <button id="btn-latch" class="tog-btn" onclick="toggleLatch()">LATCH: OFF</button>
+                <select id="arp-mode" class="mod-sel">
+                    <option value="up">UP</option>
+                    <option value="down">DOWN</option>
+                    <option value="rnd">RANDOM</option>
+                </select>
+            </div>
+            <div class="ctrl-row"><span>BPM (<span id="bpm-val">120</span>)</span> <input type="range" id="arp-bpm"
+                    min="40" max="240" value="120" oninput="updateBpm(this.value)"></div>
+            <div class="ctrl-row"><span>GATE</span> <input type="range" id="arp-gate" min="10" max="100" value="50">
+            </div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🔁 4-TRACK MIDI LOOPER</h3>
+            <div id="looper-ui"></div>
+            <div style="font-size:9px; color:#888; margin-top:5px; text-align:center;">Loop length is set by Track 1's
+                first recording.</div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🌊 SOFTWARE MODULATORS</h3>
+            <div class="ctrl-row"><button id="btn-lfo2" class="tog-btn" onclick="toggleLFO2()">LFO 2: OFF</button><span
+                    style="font-size:9px; color:#888;">(Routes to Filter)</span></div>
+            <div class="ctrl-row"><span>RATE</span> <input type="range" id="lfo2-rate" min="1" max="50" value="10">
+            </div>
+            <div class="ctrl-row"><span>DEPTH</span> <input type="range" id="lfo2-depth" min="0" max="100" value="0">
+            </div>
+            <hr style="border:0; border-top:1px solid #333; margin:10px 0;">
+            <div class="ctrl-row"><button id="btn-vel" class="tog-btn" onclick="toggleVel()">VEL TO FILTER: OFF</button>
+            </div>
+            <div class="ctrl-row"><span>AMOUNT</span> <input type="range" id="vel-amt" min="0" max="100" value="50">
+            </div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🔀 VECTOR XY MORPH PAD</h3>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <button class="tog-btn" onclick="assignXY('A')">SET A (Top L)</button>
+                <button class="tog-btn" onclick="assignXY('B')">SET B (Top R)</button>
+            </div>
+            <div class="xy-pad" id="xy-pad">
+                <div class="xy-puck" id="xy-puck"></div>
+                <span class="xy-label" style="top:5px; left:5px;">A</span>
+                <span class="xy-label" style="top:5px; right:5px;">B</span>
+                <span class="xy-label" style="bottom:5px; left:5px;">C</span>
+                <span class="xy-label" style="bottom:5px; right:5px;">D</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                <button class="tog-btn" onclick="assignXY('C')">SET C (Bot L)</button>
+                <button class="tog-btn" onclick="assignXY('D')">SET D (Bot R)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="exp-panel">
+        <div class="exp-box">
+            <h3 class="exp-title">🎛️ MODULAR MACRO MATRIX</h3>
+            <div class="super-knob-container">
+                <h4 style="margin:0 0 10px 0; color:var(--reface-accent); font-size: 14px;">SUPER KNOB 1</h4>
+                <input type="range" id="macro-1" min="0" max="100" value="0" oninput="fireMacro1(this.value)">
+                <p style="font-size:9px; color:#aaa; margin:5px 0 0 0;">Maps to: FCUT (Up), FRES (Up), LFO DEPTH (Up)
+                </p>
+            </div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🔊 DIGITAL DELAY</h3>
+            <div class="ctrl-row">
+                <button id="btn-delay" class="tog-btn" onclick="toggleDelay()">DELAY: OFF</button>
+            </div>
+            <div class="ctrl-row"><span>TIME</span> <input type="range" id="fx-dly-time" min="1" max="100" value="40"
+                    oninput="updateFX()"></div>
+            <div class="ctrl-row"><span>FEEDBACK</span> <input type="range" id="fx-dly-fb" min="0" max="95" value="50"
+                    oninput="updateFX()"></div>
+            <div class="ctrl-row"><span>MIX</span> <input type="range" id="fx-dly-mix" min="0" max="100" value="30"
+                    oninput="updateFX()"></div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">☁️ CLOUD REVERB</h3>
+            <div class="ctrl-row">
+                <button id="btn-verb" class="tog-btn" onclick="toggleReverb()">REVERB: OFF</button>
+            </div>
+            <div class="ctrl-row"><span>SIZE</span> <input type="range" id="fx-verb-size" min="1" max="100" value="50"
+                    oninput="generateReverb()"></div>
+            <div class="ctrl-row"><span>MIX</span> <input type="range" id="fx-verb-mix" min="0" max="100" value="40"
+                    oninput="updateFX()"></div>
+            <div style="font-size:9px; color:#888; text-align:center; margin-top:10px;">High Size values take a moment
+                to calculate.</div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🎹 80s STEREO CHORUS (JUNO)</h3>
+            <div class="ctrl-row">
+                <button id="btn-chorus" class="tog-btn" onclick="toggleChorus()">STEREO CHORUS: OFF</button>
+            </div>
+
+            <div class="ctrl-row" style="margin-top:10px;">
+                <span>RATE (SPEED)</span>
+                <input type="range" id="chorus-rate" min="1" max="100" value="15" oninput="updateChorusSettings()">
+            </div>
+            <div class="ctrl-row">
+                <span>DEPTH (WIDTH)</span>
+                <input type="range" id="chorus-depth" min="0" max="100" value="60" oninput="updateChorusSettings()">
+            </div>
+            <div class="ctrl-row">
+                <span>MIX (DRY/WET)</span>
+                <input type="range" id="chorus-mix" min="0" max="100" value="50" oninput="updateChorusSettings()">
+            </div>
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:8px;">
+                HEADPHONES REQUIRED. Splits the mono synth into ultra-wide stereo.
+            </p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title" style="color:#ff3366; border-bottom-color:#ff3366;">⚡ "CROSS" BITCRUSHER</h3>
+            <div class="ctrl-row">
+                <button id="btn-crush" class="tog-btn" onclick="toggleCrusher()"
+                    style="border-color:#ff3366; color:#ff3366;">BITCRUSHER: OFF</button>
+            </div>
+
+            <div class="ctrl-row" style="margin-top:10px;">
+                <span style="color:#ff3366;">FUZZ DRIVE</span>
+                <input type="range" id="crush-drive" min="1" max="100" value="50" oninput="updateCrusherSettings()">
+            </div>
+            <div class="ctrl-row">
+                <span style="color:#ff3366;">DESTRUCTION (BITS)</span>
+                <input type="range" id="crush-bits" min="1" max="16" value="16" oninput="updateCrusherSettings()">
+            </div>
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:8px;">
+                WARNING: EXTREMELY AGGRESSIVE. Turn your speaker volume down before activating.
+            </p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title" style="color:#f1c40f; border-bottom-color:#f1c40f;">🎛️ MPC BEAT REPEATER</h3>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;">
+                <button class="btn-clr" style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;" 
+                    onmousedown="triggerStutter(4)" onmouseup="releaseStutter()" onmouseleave="releaseStutter()">
+                    1/4 BEAT
+                </button>
+                <button class="btn-clr" style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;" 
+                    onmousedown="triggerStutter(8)" onmouseup="releaseStutter()" onmouseleave="releaseStutter()">
+                    1/8 BEAT
+                </button>
+                <button class="btn-clr" style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;" 
+                    onmousedown="triggerStutter(16)" onmouseup="releaseStutter()" onmouseleave="releaseStutter()">
+                    1/16 BEAT
+                </button>
+                <button class="btn-clr" style="background:#222; color:#f1c40f; height:50px; font-weight:bold; font-size:14px;" 
+                    onmousedown="triggerStutter(32)" onmouseup="releaseStutter()" onmouseleave="releaseStutter()">
+                    1/32 MACHINE GUN
+                </button>
+            </div>
+            
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:10px; line-height:1.3;">
+                CLICK AND HOLD to capture and stutter the audio. Release to drop the beat. Syncs to Arpeggiator BPM.
+            </p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title" style="color:var(--match-green); border-bottom-color:var(--match-green);">🚁 TRANCE-GATE</h3>
+            <div class="ctrl-row">
+                <button id="btn-tgate" class="tog-btn" onclick="toggleTGate()">TRANCE-GATE: OFF</button>
+            </div>
+            
+            <div id="tgate-grid" style="display:grid; grid-template-columns: repeat(16, 1fr); gap:2px; margin-top:10px;">
+                </div>
+            
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:10px; line-height:1.3;">
+                Hold a sustained chord. Green steps let audio through; dark steps mute it. Syncs to BPM.
+            </p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🧬 TURING MACHINE (GENERATIVE)</h3>
+            <div class="ctrl-row">
+                <button id="btn-turing" class="tog-btn" onclick="toggleTuring()">TURING: OFF</button>
+                <button class="btn-clr" onclick="seedTuring()" style="background:#444; color:white;">🎲 SEED
+                    NEW</button>
+            </div>
+            <div class="ctrl-row">
+                <span>MUTATION</span>
+                <input type="range" id="turing-mut" min="0" max="100" value="10" oninput="updateTuringMut(this.value)">
+                <span id="turing-mut-val"
+                    style="width:30px; text-align:right; font-weight:bold; color:var(--target-blue);">10%</span>
+            </div>
+            <div class="ctrl-row">
+                <span>LENGTH</span>
+                <input type="range" id="turing-len" min="2" max="16" value="8" oninput="updateTuringLen(this.value)">
+                <span id="turing-len-val" style="width:30px; text-align:right; font-weight:bold;">8</span>
+            </div>
+            <div class="turing-vis" id="turing-vis"></div>
+            <div style="font-size:9px; color:#888; text-align:center; margin-top:8px;">Locks to the Scale set in the
+                Theory Panel.</div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">✏️ CUSTOM DRAWABLE LFO</h3>
+            <div class="ctrl-row">
+                <button id="btn-draw-lfo" class="tog-btn" onclick="toggleDrawLFO()">LFO: OFF</button>
+                <select id="draw-lfo-target" class="mod-sel" onchange="drawLfo.lastSentCC = -1;">
+                    <option value="74">FILTER CUTOFF</option>
+                    <option value="109">RESONANCE</option>
+                    <option value="103">LFO DEPTH</option>
+                </select>
+            </div>
+
+            <canvas id="draw-lfo-canvas" width="300" height="100"></canvas>
+
+            <div class="ctrl-row" style="margin-top:10px;">
+                <span>RATE</span>
+                <input type="range" id="draw-lfo-rate" min="1" max="100" value="20">
+            </div>
+            <div class="ctrl-row">
+                <span>DEPTH</span>
+                <input type="range" id="draw-lfo-depth" min="0" max="100" value="50">
+            </div>
+            <div style="font-size:9px; color:#888; text-align:center; margin-top:5px;">Click and drag in the box to draw
+                a wave!</div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🤖 AUTO-SAMPLER (STUDIO ROBOT)</h3>
+            <p style="font-size:10px; color:#aaa; margin:0 0 10px 0; line-height:1.4;">
+                Automatically plays, records, and exports a multi-sampled instrument patch of your current hardware
+                sound.
+            </p>
+            <div class="ctrl-row">
+                <button id="btn-autosample" class="btn-clr" onclick="startAutoSampler()"
+                    style="background:var(--target-blue); color:white; width:100%; padding:10px; font-weight:bold;">
+                    START SAMPLING (C2 - C5)
+                </button>
+            </div>
+            <div id="sampler-status"
+                style="font-size:11px; color:var(--match-green); text-align:center; margin-top:10px; height:15px; font-weight:bold;">
+            </div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🦆 "FRENCH TOUCH" SIDECHAIN</h3>
+            <div class="ctrl-row">
+                <button id="btn-sidechain" class="tog-btn" onclick="toggleSidechain()">SIDECHAIN: OFF</button>
+                <select id="sc-target" class="mod-sel" onchange="sidechain.lastSentCC = -1;">
+                    <option value="11">EXPRESSION (VOLUME)</option>
+                    <option value="74">FILTER CUTOFF</option>
+                </select>
+            </div>
+
+            <div class="ctrl-row">
+                <span>THRESHOLD</span>
+                <input type="range" id="sc-thresh" min="1" max="100" value="20">
+            </div>
+            <div class="ctrl-row">
+                <span>DEPTH</span>
+                <input type="range" id="sc-depth" min="0" max="100" value="90">
+            </div>
+
+            <div class="sc-meter" id="sc-meter">
+                <div class="sc-fill" id="sc-fill"></div>
+            </div>
+            <div style="font-size:9px; color:#888; text-align:center; margin-top:5px;">Play a beat near your mic to pump
+                the synth!</div>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🎤 VOCAL CONTROLLER (MIC TO MIDI)</h3>
+            <div class="ctrl-row">
+                <button id="btn-vocal" class="tog-btn" onclick="toggleVocal()">MIC DETECT: OFF</button>
+            </div>
+            <div class="ctrl-row">
+                <span>NOISE GATE</span>
+                <input type="range" id="vocal-gate" min="5" max="100" value="15">
+            </div>
+
+            <div style="display:flex; flex-direction:column; align-items:center; margin-top:15px;">
+                <span style="font-size:9px; color:#888; text-transform:uppercase;">Detecting Note:</span>
+                <div id="vocal-note-out"
+                    style="font-size: 2.5rem; font-family: monospace; font-weight: bold; color: #444; text-shadow: none; transition: 0.1s;">
+                    --</div>
+            </div>
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:5px; line-height: 1.2;">
+                WARNING: Use headphones! If the mic hears the synth, it will cause a feedback loop. Set synth to MONO
+                for best results.
+            </p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">👐 WEBCAM THEREMIN (AI)</h3>
+            <div class="ctrl-row">
+                <button id="btn-theremin" class="tog-btn" onclick="toggleTheremin()">THEREMIN: OFF</button>
+                <button id="btn-drone" class="tog-btn" onclick="toggleDrone()" style="margin-left:10px;">DRONE:
+                    OFF</button>
+                <div id="theremin-status" style="font-size:9px; color:var(--target-blue); font-weight:bold;">WAITING...
+                </div>
+            </div>
+
+            <div class="theremin-screen">
+                <video id="theremin-video" style="display:none;" playsinline></video>
+                <canvas id="theremin-canvas" width="300" height="225"></canvas>
+            </div>
+
+            <div class="ctrl-row" style="margin-top:10px;">
+                <span>LEFT Y (Up/Down)</span>
+                <select id="theremin-left" class="mod-sel">
+                    <option value="74">FILTER CUTOFF</option>
+                    <option value="11">EXPRESSION VOL</option>
+                </select>
+            </div>
+            <div class="ctrl-row">
+                <span>RIGHT X (Left/Right)</span>
+                <select id="theremin-right" class="mod-sel">
+                    <option value="109">RESONANCE</option>
+                    <option value="103">LFO DEPTH</option>
+                </select>
+            </div>
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:5px;">Step back so the camera can see
+                both hands!</p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🪐 EUCLIDEAN POLYRHYTHMS</h3>
+            <div class="ctrl-row">
+                <span>TARGET TRACK</span>
+                <select id="euc-track" class="mod-sel">
+                    <option value="0">TRACK 1</option>
+                    <option value="1">TRACK 2</option>
+                    <option value="2">TRACK 3</option>
+                    <option value="3">TRACK 4</option>
+                </select>
+            </div>
+            <div class="ctrl-row" style="background:#111; padding:5px; border-radius:4px; margin-bottom:10px;">
+                <span style="color:var(--match-green); font-weight:bold;">MPC SWING</span>
+                <input type="range" id="seq-swing" min="0" max="75" value="0"
+                    oninput="document.getElementById('swing-val').innerText=this.value+'%'">
+                <span id="swing-val" style="width:30px; text-align:right; font-weight:bold;">0%</span>
+            </div>
+            <div class="ctrl-row">
+                <span>STEPS (LENGTH)</span>
+                <input type="range" id="euc-steps" min="1" max="16" value="16"
+                    oninput="document.getElementById('euc-step-val').innerText=this.value">
+                <span id="euc-step-val" style="width:20px; text-align:right; font-weight:bold;">16</span>
+            </div>
+            <div class="ctrl-row">
+                <span>HITS (NOTES)</span>
+                <input type="range" id="euc-hits" min="1" max="16" value="5"
+                    oninput="document.getElementById('euc-hit-val').innerText=this.value">
+                <span id="euc-hit-val"
+                    style="width:20px; text-align:right; font-weight:bold; color:var(--target-blue);">5</span>
+            </div>
+            <div class="ctrl-row" style="margin-top:5px;">
+                <span>MELODY (USES SCALE)</span>
+                <input type="checkbox" id="euc-rand-notes" style="width:20px; height:20px; cursor:pointer;" checked>
+            </div>
+            <button class="btn-clr" onclick="applyEuclidean()"
+                style="background:var(--match-green); color:black; font-weight:bold; margin-top:10px; padding: 8px;">
+                🧬 GENERATE RHYTHM
+            </button>
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:8px;">Automatically programs the 16-Step
+                Sequencer.</p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🎧 3D BINAURAL SPATIALIZER</h3>
+            <div class="ctrl-row">
+                <button id="btn-3d" class="tog-btn" onclick="toggle3D()">3D AUDIO: OFF</button>
+            </div>
+            <div class="ctrl-row" style="margin-top:15px;">
+                <button id="btn-orbit" class="tog-btn" onclick="toggleOrbit()" style="width:100%;">AUTO ORBIT:
+                    OFF</button>
+            </div>
+            <div class="ctrl-row">
+                <span>ORBIT SPEED</span>
+                <input type="range" id="orbit-speed" min="1" max="100" value="10">
+            </div>
+            <div class="ctrl-row">
+                <span>ORBIT DISTANCE</span>
+                <input type="range" id="orbit-radius" min="0" max="10" value="10" step="0.5">
+            </div>
+
+            <div class="radar-container">
+                <div class="radar-screen" id="radar-screen">
+                    <div class="radar-head"></div>
+                    <div class="radar-puck" id="radar-puck"></div>
+                </div>
+            </div>
+
+            <div class="ctrl-row" style="margin-top:15px;">
+                <span>ELEVATION (UP/DOWN)</span>
+                <input type="range" id="radar-elev" min="-10" max="10" value="0" oninput="updateElevation(this.value)">
+            </div>
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:8px; font-weight:bold;">
+                HEADPHONES REQUIRED. Drag the green dot to orbit the sound around your head.
+            </p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">🧬 GENETIC BREEDER (DARWIN)</h3>
+            <div class="ctrl-row">
+                <span>MOTHER</span>
+                <select id="breed-mom" class="mod-sel"></select>
+            </div>
+            <div class="ctrl-row">
+                <span>FATHER</span>
+                <select id="breed-dad" class="mod-sel"></select>
+            </div>
+            <div class="ctrl-row">
+                <span>MUTATION RATE</span>
+                <input type="range" id="breed-mut" min="0" max="100" value="10"
+                    oninput="document.getElementById('breed-mut-val').innerText=this.value+'%'">
+                <span id="breed-mut-val"
+                    style="width:30px; text-align:right; font-weight:bold; color:var(--target-blue);">10%</span>
+            </div>
+            <button class="btn-clr" onclick="breedPatches()"
+                style="background:var(--target-blue); color:white; font-weight:bold; margin-top:10px; padding: 10px; width:100%;">
+                SPLICE DNA (SPAWN 4 CHILDREN)
+            </button>
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:8px;">
+                Combines sliders from parents. Saves 4 new mutants to your Library.
+            </p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">👻 GHOST MOTION SEQUENCER</h3>
+            <div class="ctrl-row">
+                <button id="btn-motion-rec" class="tog-btn" onclick="toggleMotionRec()"
+                    style="color:red; border-color:red;">🔴 ARM RECORD</button>
+                <button id="btn-motion-play" class="tog-btn" onclick="toggleMotionPlay()">▶️ PLAY GHOST</button>
+            </div>
+
+            <div class="ctrl-row" style="margin-top:10px;">
+                <span>LOOP LENGTH</span>
+                <input type="range" id="motion-length" min="1" max="8" value="4"
+                    oninput="document.getElementById('motion-len-val').innerText=this.value+' SEC'">
+                <span id="motion-len-val" style="width:50px; text-align:right; font-weight:bold;">4 SEC</span>
+            </div>
+
+            <button class="btn-clr" onclick="clearMotion()"
+                style="width:100%; margin-top:5px; background:#222; color:#fff;">
+                🗑️ WIPE AUTOMATION MEMORY
+            </button>
+
+            <div class="sc-meter" style="margin-top:10px; height:8px; background:#111; border: 1px solid #333;">
+                <div class="sc-fill" id="motion-playhead" style="width:0%; background:var(--target-blue);"></div>
+            </div>
+
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:5px; line-height:1.3;">
+                Hit Record and physically twist your hardware sliders. The Ghost will loop your movements.
+            </p>
+        </div>
+
+        <div class="exp-box">
+            <h3 class="exp-title">☄️ GRAVITY SEQUENCER</h3>
+            <div class="ctrl-row">
+                <button class="btn-clr" onclick="spawnGravBall()"
+                    style="background:var(--target-blue); color:white; font-weight:bold;">
+                    🟢 DROP BALL
+                </button>
+                <button class="btn-clr" onclick="clearGrav()">🗑️ CLEAR ALL</button>
+            </div>
+
+            <canvas id="grav-canvas" width="300" height="200"></canvas>
+
+            <div class="ctrl-row" style="margin-top:10px;">
+                <span>GRAVITY</span>
+                <input type="range" id="grav-g" min="1" max="20" value="5">
+            </div>
+            <div class="ctrl-row">
+                <span>BOUNCINESS</span>
+                <input type="range" id="grav-b" min="10" max="100" value="85">
+            </div>
+            <p style="font-size:9px; color:#aaa; text-align:center; margin-top:5px;">
+                CLICK & DRAG on the black box to draw angled walls!
+            </p>
+        </div>
+
+        <div class="exp-box" style="grid-column: 1 / -1;">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:10px;">
+                <h3 class="exp-title" style="border:none; margin:0; padding:0;">🦠 CELLULAR AUTOMATA (GAME OF LIFE)</h3>
+                <div class="ctrl-row" style="margin:0;">
+                    <button id="btn-life" class="tog-btn" onclick="toggleLife()" style="margin-right:10px;">LIFE:
+                        OFF</button>
+                    <button class="btn-clr" onclick="randomizeLife()" style="margin-right:5px;">🎲 SEED RANDOM</button>
+                    <button class="btn-clr" onclick="clearLife()">🗑️ CLEAR</button>
+                </div>
+            </div>
+
+            <div class="life-grid" id="life-grid"></div>
+
+            <p style="font-size:10px; color:#aaa; text-align:center; margin-top:10px; font-weight:bold;">
+                Draw shapes on the grid. Every time the playhead sweeps across, the cells evolve. (Pitches lock to
+                Theory Panel Scale).
+            </p>
+        </div>
+
+        <div class="exp-box" style="grid-column: 1 / -1;">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:10px;">
+                <h3 class="exp-title" style="border:none; margin:0; padding:0;">🥁 4-TRACK POLYPHONIC SEQUENCER</h3>
+                <div class="ctrl-row" style="margin:0;">
+                    <button id="btn-seq" class="tog-btn" onclick="toggleSeq()" style="margin-right:10px;">SEQ:
+                        OFF</button>
+                    <button class="btn-clr" onclick="clearSeq()">CLEAR ALL TRACKS</button>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <div class="seq-track-ctrl" id="seq-trk-0">
+                    <button class="trk-sel active" onclick="selectSeqTrack(0)">TRACK 1</button>
+                    <button class="trk-mute" onclick="toggleSeqMute(0)">PLAYING</button>
+                </div>
+                <div class="seq-track-ctrl" id="seq-trk-1">
+                    <button class="trk-sel" onclick="selectSeqTrack(1)">TRACK 2</button>
+                    <button class="trk-mute" onclick="toggleSeqMute(1)">PLAYING</button>
+                </div>
+                <div class="seq-track-ctrl" id="seq-trk-2">
+                    <button class="trk-sel" onclick="selectSeqTrack(2)">TRACK 3</button>
+                    <button class="trk-mute" onclick="toggleSeqMute(2)">PLAYING</button>
+                </div>
+                <div class="seq-track-ctrl" id="seq-trk-3">
+                    <button class="trk-sel" onclick="selectSeqTrack(3)">TRACK 4</button>
+                    <button class="trk-mute" onclick="toggleSeqMute(3)">PLAYING</button>
+                </div>
+            </div>
+
+            <div class="seq-grid" id="seq-grid"></div>
+
+            <div class="seq-edit" id="seq-edit">
+                <span style="color:var(--target-blue); font-weight:bold;">EDIT STEP <span
+                        id="edit-step-num">1</span>:</span>
+                <label>NOTE: <input type="number" id="seq-note" min="36" max="96" value="60"
+                        onchange="updateStep()"></label>
+                <label>P-LOCK FILTER: <input type="range" id="seq-cut" min="0" max="12" value="0"
+                        oninput="updateStep()"></label>
+                <span style="font-size:9px; color:#888;">(0 = No Lock, uses physical slider. 1-12 = Locks Cutoff for
+                    this step)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="edu-panel">
+        <div class="exp-box">
+            <h3 class="exp-title">🎹 CHORD DECODER & SCALES</h3>
+            <div class="kb-controls">
+                <select id="scale-root" onchange="updateTheoryUI()">
+                    <option value="0">C</option>
+                    <option value="1">C#</option>
+                    <option value="2">D</option>
+                    <option value="3">D#</option>
+                    <option value="4">E</option>
+                    <option value="5">F</option>
+                    <option value="6">F#</option>
+                    <option value="7">G</option>
+                    <option value="8">G#</option>
+                    <option value="9">A</option>
+                    <option value="10">A#</option>
+                    <option value="11">B</option>
+                </select>
+                <select id="scale-type" onchange="updateTheoryUI()">
+                    <option value="None">Scale: OFF</option>
+                    <option value="Major">Major</option>
+                    <option value="Minor">Nat Minor</option>
+                    <option value="PentMaj">Pent Major</option>
+                    <option value="PentMin">Pent Minor</option>
+                    <option value="Blues">Blues</option>
+                </select>
+                <select id="ghost-type" onchange="updateTheoryUI()">
+                    <option value="None">Ghost: OFF</option>
+                    <option value="Major">Major</option>
+                    <option value="Minor">Minor</option>
+                    <option value="Maj7">Major 7th</option>
+                    <option value="Min7">Minor 7th</option>
+                    <option value="Dom7">Dominant 7th</option>
+                </select>
+            </div>
+            <div class="keyboard" id="keyboard"></div>
+            <div id="chord-display">PLAY A CHORD</div>
+        </div>
+        <div class="exp-box">
+            <h3 class="exp-title">📈 LIVE ADSR TRACKER</h3><canvas id="env-canvas"></canvas>
+        </div>
+        <div class="exp-box" style="align-items:center;">
+            <h3 class="exp-title" style="width:100%;">🧭 CIRCLE OF FIFTHS</h3><canvas id="cof-canvas"></canvas>
+        </div>
+    </div>
+
+    <div class="synth-body">
+        <div class="section-grid" id="synth-panel"></div>
+    </div>
+
+    <div class="ui-area">
+        <div class="panel">
+            <input type="text" id="pName" placeholder="Preset Name"><textarea id="pNotes"
+                placeholder="Performance notes..."></textarea>
+            <div class="btn-group"><button onclick="savePatch()" style="flex:1;">💾 SAVE TO LIBRARY</button></div>
+            <div class="btn-group"><button style="background:#673ab7;" onclick="randomize()">🎲 RANDOM
+                    GHOST</button><button onclick="window.print()" style="background:var(--target-blue);">📄
+                    PDF</button><button onclick="hideGhost()">CLEAR GHOST</button></div>
+            <div
+                style="background: #f9f9f9; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-top: 10px;">
+                <p style="font-size: 9px; color: #888; margin: 0 0 8px 0; font-weight: bold;">DATA & MAPPING</p>
+                <div class="btn-group">
+                    <button onclick="exportLibrary()" style="background:#555;">Export Lib</button><button
+                        onclick="document.getElementById('libIn').click()" style="background:#555;">Import
+                        Lib</button><input type="file" id="libIn" style="display:none" onchange="importLibrary(event)">
+                    <button onclick="exportMapping()" style="background:#888;">Save Map</button><button
+                        onclick="document.getElementById('mapIn').click()" style="background:#888;">Load
+                        Map</button><input type="file" id="mapIn" style="display:none" onchange="importMapping(event)">
+                </div>
+            </div>
+        </div>
+        <div class="panel">
+            <h3 style="margin:0 0 10px 0; font-size:0.7rem; color:#888;">LIBRARY</h3>
+            <div class="patch-list" id="pList"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="globals.js"></script>
+    <script src="engine.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
