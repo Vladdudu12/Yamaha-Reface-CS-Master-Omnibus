@@ -211,15 +211,34 @@ let analyserL = null;
 let analyserR = null;
 
 // --- SYNTHESIA CASCADE STATE ---
+// --- SYNTHESIA CASCADE STATE ---
 let cascade = {
     isPlaying: false,
-    speed: 3, // How fast the notes fall
+    speed: 3, 
     score: 0,
-    fallingNotes: [], // Notes currently on screen
-    songQueue: [], // Notes waiting to drop
-    hitZoneY: 350, // The physical line they must cross to be hit
-    particles: [] // For the explosion effects!
+    fallingNotes: [], 
+    songQueue: [], 
+    hitZoneY: 350, 
+    particles: [],
+    activeKeys: {} // <-- NEW: Tracks which physical keys are currently held down!
 };
+// --- SYNTHESIA PIANO GEOMETRY ---
+// Maps 24 MIDI notes (C3 to B4) to realistic physical piano positions
+const cascadeKeyMap = {};
+let whiteKeyIndex = 0;
+
+for (let i = 0; i < 24; i++) {
+    let noteInOctave = i % 12;
+    let isBlack = [1, 3, 6, 8, 10].includes(noteInOctave); // C#, D#, F#, G#, A#
+    
+    if (isBlack) {
+        cascadeKeyMap[48 + i] = { isBlack: true, visualX: whiteKeyIndex - 0.35, widthMult: 0.7 };
+    } else {
+        cascadeKeyMap[48 + i] = { isBlack: false, visualX: whiteKeyIndex, widthMult: 1.0 };
+        whiteKeyIndex++;
+    }
+}
+const totalWhiteKeys = 14; // 2 Octaves = 14 white keys
 
 // A simple sequence: { pitch: MIDI note, delay: frames to wait before dropping }
 const demoSong = [
@@ -232,6 +251,7 @@ const demoSong = [
     { pitch: 55, delay: 60 }, // G3
     { pitch: 52, delay: 60 }  // E3
 ];
+let customSong = null; // Will hold the parsed MIDI data from your file
 
 // --- THE REPLICANT STATE ---
 let replicant = {
@@ -271,4 +291,15 @@ let timingTrainer = {
     bpm: 100,
     interval: 600, // Milliseconds between beats
     nextBeat: 0
+};
+
+// --- OSU! KEYS STATE ---
+let osuGame = {
+    isPlaying: false,
+    score: 0,
+    combo: 0,
+    approachTime: 1500, // How many milliseconds you have to react before the ring hits the circle
+    hitObjects: [],     // Circles currently on screen
+    animations: [],     // The 300 / 100 / 50 / MISS floating text
+    songQueue: []       // Notes waiting to spawn
 };

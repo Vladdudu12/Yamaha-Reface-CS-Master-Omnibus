@@ -32,6 +32,8 @@ if (navigator.requestMIDIAccess) {
             input.onmidimessage = (msg) => {
                 const [s, d1, d2] = msg.data; const cmd = s & 0xF0;
 
+
+
                 // --- EXTERNAL MIDI CLOCK SYNC (Reface Tempo Slider) ---
                 if (s === 0xF8) { // 0xF8 is the universal MIDI Clock Pulse
                     const now = performance.now();
@@ -120,23 +122,25 @@ if (navigator.requestMIDIAccess) {
                 if (isNoteOn && cascade.isPlaying) {
                     const hitMargin = 30; // Pixels above/below the line
                     const keyWidth = 800 / 24; // Canvas width / 24 keys
-                    
+
                     for (let i = cascade.fallingNotes.length - 1; i >= 0; i--) {
                         let n = cascade.fallingNotes[i];
-                        
+
                         // Did you hit the right pitch AND is it in the Hit Zone?
                         if (n.pitch === d1 && Math.abs(n.y - cascade.hitZoneY) < hitMargin) {
                             // Perfect Hit!
                             cascade.score += 100;
                             document.getElementById('cascade-score').innerText = cascade.score;
-                            
+
                             // Calculate X position for the explosion
-                            let xPos = (n.pitch - 48) * keyWidth + (keyWidth/2);
+                            let wKeyWidth = document.getElementById('cascade-canvas').width / 14;
+                            let geo = cascadeKeyMap[n.pitch];
+                            let xPos = geo ? (geo.visualX * wKeyWidth) + (wKeyWidth * geo.widthMult / 2) : 0;
                             spawnExplosion(xPos, cascade.hitZoneY);
-                            
+
                             // Destroy the block
                             cascade.fallingNotes.splice(i, 1);
-                            break; 
+                            break;
                         }
                     }
                 }
@@ -145,20 +149,20 @@ if (navigator.requestMIDIAccess) {
                 if (isNoteOn && typeof replicant !== 'undefined' && replicant.state === 'listening') {
                     // Check the note the player just pressed against the sequence memory
                     let targetNote = replicant.sequence[replicant.playerStep];
-                    
+
                     if (d1 === targetNote) {
                         // CORRECT NOTE!
                         replicant.playerStep++;
-                        
+
                         // Did they finish the whole sequence?
                         if (replicant.playerStep >= replicant.sequence.length) {
                             replicant.state = 'idle'; // Lock the board
                             replicant.level++;
-                            
+
                             document.getElementById('rep-level').innerText = "LVL " + replicant.level;
                             document.getElementById('rep-status').innerText = "✅ SEQUENCE ACCEPTED.";
                             document.getElementById('rep-status').style.color = "var(--match-green)";
-                            
+
                             // Start the next round after a short celebration pause
                             setTimeout(nextReplicantRound, 1500);
                         }
@@ -174,10 +178,10 @@ if (navigator.requestMIDIAccess) {
                 // --- SIGHT-READING HIT DETECTION ---
                 if (isNoteOn && typeof sightReader !== 'undefined' && sightReader.isPlaying) {
                     const targetX = 100; // The yellow laser line
-                    
+
                     for (let i = sightReader.notes.length - 1; i >= 0; i--) {
                         let n = sightReader.notes[i];
-                        
+
                         // If the note you pressed matches the pitch on screen...
                         if (d1 === n.pitch) {
                             // And it is close to the Target Zone...
@@ -185,10 +189,10 @@ if (navigator.requestMIDIAccess) {
                                 // PERFECT HIT!
                                 sightReader.score += 50;
                                 document.getElementById('staff-score').innerText = sightReader.score;
-                                
+
                                 // Destroy the note so it disappears from the sheet music
                                 sightReader.notes.splice(i, 1);
-                                break; 
+                                break;
                             }
                         }
                     }
@@ -197,43 +201,43 @@ if (navigator.requestMIDIAccess) {
                 // --- TIMING TRAINER HIT DETECTION ---
                 if (isNoteOn && typeof timingTrainer !== 'undefined' && timingTrainer.on) {
                     const now = performance.now();
-                    
+
                     // Did you play closer to the UPCOMING beat, or the PREVIOUS beat?
                     const timeToNext = timingTrainer.nextBeat - now;
                     const timeToPrev = now - (timingTrainer.nextBeat - timingTrainer.interval);
-                    
+
                     let differenceMs = 0;
                     let label = "";
                     let color = "";
-                    
+
                     if (timeToNext < timeToPrev) {
-                        differenceMs = timeToNext; 
+                        differenceMs = timeToNext;
                         label = "EARLY";
                     } else {
-                        differenceMs = timeToPrev; 
+                        differenceMs = timeToPrev;
                         label = "LATE";
                     }
-                    
+
                     // Ignore random notes played entirely off-beat
                     if (differenceMs < (timingTrainer.interval / 2)) {
                         const ms = Math.round(differenceMs);
-                        
+
                         // Judge the precision!
-                        if (ms < 20) { 
+                        if (ms < 20) {
                             color = "#00ffcc"; // Neon Green
-                            label = "PERFECT!"; 
-                        } else if (ms < 50) { 
+                            label = "PERFECT!";
+                        } else if (ms < 50) {
                             color = "#ffcc00"; // Yellow
-                        } else { 
+                        } else {
                             color = "#ff3333"; // Red
                         }
-                        
+
                         // Update the screen
                         const fb = document.getElementById('timing-feedback');
                         fb.innerText = ms < 20 ? label : `${ms}ms ${label}`;
                         fb.style.color = color;
                         fb.style.textShadow = `0 0 15px ${color}`;
-                        
+
                         // Flash the border of the box to match the color
                         const displayBox = document.getElementById('timing-display');
                         displayBox.style.borderColor = color;
@@ -241,7 +245,57 @@ if (navigator.requestMIDIAccess) {
                     }
                 }
 
+                // --- OSU! KEYS HIT DETECTION ---
+                if (isNoteOn && typeof osuGame !== 'undefined' && osuGame.isPlaying) {
+                    const now = performance.now();
+                    
+                    // Look for the oldest circle on screen that matches the physical key you just pressed
+                    let hitIndex = osuGame.hitObjects.findIndex(obj => obj.pitch === d1);
+                    
+                    if (hitIndex !== -1) {
+                        let obj = osuGame.hitObjects[hitIndex];
+                        let timeDiff = Math.abs(obj.targetTime - now); // How far off from PERFECT were you?
+                        
+                        let xPos = (obj.pitch - 48) * (800 / 24) + (800 / 48);
+                        let yPos = obj.y;
+
+                        // Osu! Hit Windows
+                        if (timeDiff <= 50) {
+                            // PERFECT!
+                            osuGame.score += 300 + (osuGame.combo * 10);
+                            osuGame.combo++;
+                            spawnOsuHitText(xPos, yPos, "300", "#00ffcc");
+                        } else if (timeDiff <= 100) {
+                            // GOOD
+                            osuGame.score += 100 + (osuGame.combo * 5);
+                            osuGame.combo++;
+                            spawnOsuHitText(xPos, yPos, "100", "#ffcc00");
+                        } else if (timeDiff <= 150) {
+                            // MEH
+                            osuGame.score += 50;
+                            osuGame.combo++;
+                            spawnOsuHitText(xPos, yPos, "50", "#3399ff");
+                        } else {
+                            // YOU PRESSED IT TOO EARLY OR TOO LATE
+                            osuGame.combo = 0;
+                            spawnOsuHitText(xPos, yPos, "MISS", "#ff3333");
+                        }
+
+                        document.getElementById('osu-score').innerText = osuGame.score.toString().padStart(6, '0');
+                        document.getElementById('osu-combo').innerText = osuGame.combo + "x";
+                        
+                        // Destroy the circle
+                        osuGame.hitObjects.splice(hitIndex, 1);
+                    }
+                }
+
                 const isNoteOff = (cmd === 0x80 || (cmd === 0x90 && d2 === 0));
+
+                // --- NEW: LIGHT UP THE VIRTUAL ARCADE KEYS ---
+                if (typeof cascade !== 'undefined') {
+                    if (isNoteOn) cascade.activeKeys[d1] = true;
+                    if (isNoteOff) cascade.activeKeys[d1] = false;
+                }
 
                 // Modulator: Velocity to Filter
                 if (isNoteOn && mod.velOn && midiOut) {
@@ -740,7 +794,7 @@ setInterval(() => {
                 flash.style.opacity = '1';
                 setTimeout(() => flash.style.opacity = '0', 50); // Fade out instantly
             }
-            
+
             // Calculate the exact time of the next beat
             timingTrainer.bpm = parseInt(document.getElementById('timing-bpm').value);
             timingTrainer.interval = (60 / timingTrainer.bpm) * 1000;
@@ -1359,9 +1413,9 @@ function startOscilloscope() {
     const cvs = document.getElementById('osc-canvas');
     if (!cvs || !analyserL || !analyserR) {
         console.warn("Waiting for audio nodes to build...");
-        return; 
+        return;
     }
-    
+
     const ctx = cvs.getContext('2d');
     const bufferLength = analyserL.frequencyBinCount;
     const dataL = new Uint8Array(bufferLength);
@@ -1377,11 +1431,11 @@ function startOscilloscope() {
         const gain = gainSlider ? parseFloat(gainSlider.value) / 2 : 1;
 
         // Draw a semi-transparent black background to create "phosphor trails"
-        ctx.fillStyle = 'rgba(10, 10, 10, 0.2)'; 
+        ctx.fillStyle = 'rgba(10, 10, 10, 0.2)';
         ctx.fillRect(0, 0, cvs.width, cvs.height);
 
         ctx.lineWidth = 2;
-        ctx.strokeStyle = 'var(--match-green)'; 
+        ctx.strokeStyle = 'var(--match-green)';
         ctx.shadowBlur = 8;
         ctx.shadowColor = 'var(--match-green)';
         ctx.beginPath();
@@ -1389,8 +1443,8 @@ function startOscilloscope() {
         for (let i = 0; i < bufferLength; i++) {
             // Left ear controls X (Horizontal), Right ear controls Y (Vertical)
             // We apply your gain slider math here to scale the vector from the center
-            let normL = ((dataL[i] / 128.0) - 1) * gain; 
-            let normR = ((dataR[i] / 128.0) - 1) * gain; 
+            let normL = ((dataL[i] / 128.0) - 1) * gain;
+            let normR = ((dataR[i] / 128.0) - 1) * gain;
 
             const x = (normL + 1) * (cvs.width / 2);
             const y = (-normR + 1) * (cvs.height / 2); // Inverted so positive is up
@@ -1400,11 +1454,11 @@ function startOscilloscope() {
         }
         ctx.stroke();
     }
-    
+
     draw(); // Kick off the infinite drawing loop!
 }
 
-// --- SYNTHESIA CASCADE ENGINE ---
+// --- SYNTHESIA CASCADE ENGINE (FULLSCREEN & PIANO EDITION) ---
 let cascadeFrameCount = 0;
 
 function cascadeLoop() {
@@ -1412,71 +1466,113 @@ function cascadeLoop() {
     const cvs = document.getElementById('cascade-canvas');
     if (!cvs || !cascade.isPlaying) return;
     const ctx = cvs.getContext('2d');
-    
-    // Clear screen with a slight fade for motion blur
+
+    // --- FULLSCREEN RESIZE HANDLER ---
+    if (document.fullscreenElement === cvs) {
+        if (cvs.width !== window.innerWidth || cvs.height !== window.innerHeight) {
+            cvs.width = window.innerWidth;
+            cvs.height = window.innerHeight;
+            cascade.hitZoneY = cvs.height - 120; // Move hit zone up to make room for keys
+        }
+    } else {
+        if (cvs.width !== 800 || cvs.height !== 400) {
+            cvs.width = 800;
+            cvs.height = 400;
+            cascade.hitZoneY = 320;
+        }
+    }
+
+    // Clear Screen
     ctx.fillStyle = 'rgba(5, 5, 5, 0.4)';
     ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-    // Draw the "Hit Zone" Laser Line at the bottom
-    ctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, cascade.hitZoneY);
-    ctx.lineTo(cvs.width, cascade.hitZoneY);
-    ctx.stroke();
+    const wKeyWidth = cvs.width / totalWhiteKeys;
 
-    // 1. Spawner: Drop new notes from the queue
+    // 1. Spawner
     cascadeFrameCount++;
     if (cascade.songQueue.length > 0) {
         if (cascadeFrameCount >= cascade.songQueue[0].delay) {
             let nextNote = cascade.songQueue.shift();
-            cascade.fallingNotes.push({
-                pitch: nextNote.pitch,
-                y: -20, // Start above the screen
-                hit: false
-            });
-            cascadeFrameCount = 0; // Reset timer
+            cascade.fallingNotes.push({ pitch: nextNote.pitch, y: -20 });
+            cascadeFrameCount = 0;
         }
     } else if (cascade.fallingNotes.length === 0 && cascade.particles.length === 0) {
-        cascade.isPlaying = false; // Song is over!
+        cascade.isPlaying = false;
     }
 
-    // 2. Physics & Drawing: Move notes down
-    const keyWidth = cvs.width / 24; // Assuming a 2-octave view
-
+    // 2. Draw Falling Notes
     for (let i = cascade.fallingNotes.length - 1; i >= 0; i--) {
         let n = cascade.fallingNotes[i];
         n.y += cascade.speed;
 
-        // Map the MIDI pitch (48-72) to an X coordinate on the screen
-        let xPos = (n.pitch - 48) * keyWidth; 
+        let geo = cascadeKeyMap[n.pitch];
+        if (geo) {
+            let xPos = geo.visualX * wKeyWidth;
+            let nWidth = wKeyWidth * geo.widthMult;
 
-        // Draw the falling block
-        ctx.fillStyle = n.y > cascade.hitZoneY - 20 && n.y < cascade.hitZoneY + 20 ? '#ffffff' : '#00ffcc';
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#00ffcc';
-        ctx.fillRect(xPos, n.y, keyWidth - 2, 20);
-        ctx.shadowBlur = 0; // Reset
+            ctx.fillStyle = geo.isBlack ? '#ff00ff' : '#00ffcc'; // Magenta for black keys, Cyan for white
+            if (n.y > cascade.hitZoneY - 20 && n.y < cascade.hitZoneY + 20) ctx.fillStyle = '#ffffff';
 
-        // If it falls off the bottom (Missed!)
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.fillRect(xPos + 2, n.y, nWidth - 4, geo.isBlack ? 20 : 30);
+            ctx.shadowBlur = 0;
+        }
+
         if (n.y > cvs.height) {
             cascade.fallingNotes.splice(i, 1);
-            cascade.score = Math.max(0, cascade.score - 50); // Penalty!
-            document.getElementById('cascade-score').innerText = cascade.score;
+            cascade.score = Math.max(0, cascade.score - 50);
+            const sEl = document.getElementById('cascade-score');
+            if (sEl) sEl.innerText = cascade.score;
         }
     }
 
-    // 3. Draw Particle Explosions
+    // 3. DRAW THE PIANO AT THE BOTTOM
+    const keyHeight = cvs.height - cascade.hitZoneY;
+
+    // Draw White Keys first
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2;
+    for (let p = 48; p < 72; p++) {
+        let geo = cascadeKeyMap[p];
+        if (geo && !geo.isBlack) {
+            let xPos = geo.visualX * wKeyWidth;
+
+            // If the physical key is pressed, light it up Cyan! Otherwise, standard white.
+            ctx.fillStyle = cascade.activeKeys[p] ? '#00ffcc' : '#eeeeee';
+
+            ctx.fillRect(xPos, cascade.hitZoneY, wKeyWidth, keyHeight);
+            ctx.strokeRect(xPos, cascade.hitZoneY, wKeyWidth, keyHeight);
+        }
+    }
+
+    // Draw Black Keys on top
+    for (let p = 48; p < 72; p++) {
+        let geo = cascadeKeyMap[p];
+        if (geo && geo.isBlack) {
+            let bWidth = wKeyWidth * geo.widthMult;
+            let bHeight = keyHeight * 0.6;
+            let xPos = (geo.visualX * wKeyWidth) + 2;
+
+            // If the physical key is pressed, light it up Magenta! Otherwise, standard black.
+            ctx.fillStyle = cascade.activeKeys[p] ? '#ff00ff' : '#111111';
+
+            ctx.fillRect(xPos, cascade.hitZoneY, bWidth - 4, bHeight);
+
+            // Add a subtle border to black keys so they pop
+            ctx.strokeStyle = '#333';
+            ctx.strokeRect(xPos, cascade.hitZoneY, bWidth - 4, bHeight);
+        }
+    }
+    // 4. Draw Particles
     for (let i = cascade.particles.length - 1; i >= 0; i--) {
         let p = cascade.particles[i];
         p.x += p.vx; p.y += p.vy; p.life -= 0.05;
         if (p.life <= 0) { cascade.particles.splice(i, 1); continue; }
-        
-        ctx.fillStyle = `rgba(0, 255, 204, ${p.life})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.life})`;
         ctx.fillRect(p.x, p.y, 4, 4);
     }
 }
-// Start the passive loop
 cascadeLoop();
 
 
@@ -1486,7 +1582,7 @@ function staffLoop() {
     const cvs = document.getElementById('staff-canvas');
     if (!cvs || !sightReader.isPlaying) return;
     const ctx = cvs.getContext('2d');
-    
+
     // Clear the paper
     ctx.fillStyle = '#f4f4f4';
     ctx.fillRect(0, 0, cvs.width, cvs.height);
@@ -1494,7 +1590,7 @@ function staffLoop() {
     // 1. Draw the 5 Staff Lines (E4, G4, B4, D5, F5)
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 2;
-    const lineYs = [130, 100, 70, 40, 10]; 
+    const lineYs = [130, 100, 70, 40, 10];
     lineYs.forEach(y => {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cvs.width, y); ctx.stroke();
     });
@@ -1515,7 +1611,7 @@ function staffLoop() {
         // Pick a random note from our Treble Map
         const naturalNotes = Object.keys(trebleMap);
         const randomPitch = naturalNotes[Math.floor(Math.random() * naturalNotes.length)];
-        
+
         sightReader.notes.push({
             pitch: parseInt(randomPitch),
             x: cvs.width + 50, // Start slightly off-screen to the right
@@ -1551,3 +1647,86 @@ function staffLoop() {
 }
 // Start passive loop
 staffLoop();
+
+
+// --- OSU! KEYS ENGINE ---
+function osuLoop() {
+    requestAnimationFrame(osuLoop);
+    const cvs = document.getElementById('osu-canvas');
+    if (!cvs || !osuGame.isPlaying) return;
+    const ctx = cvs.getContext('2d');
+    const now = performance.now();
+
+    // Clear the screen with a heavy fade for smooth motion
+    ctx.fillStyle = 'rgba(17, 17, 17, 0.4)';
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+    // 1. Spawner: Check if any notes need to appear on screen
+    while (osuGame.songQueue.length > 0 && osuGame.songQueue[0].spawnTime <= now) {
+        osuGame.hitObjects.push(osuGame.songQueue.shift());
+    }
+
+    const keyWidth = cvs.width / 24; // Standard 2-octave width
+
+    // 2. Draw Hit Circles & Approach Rings
+    for (let i = osuGame.hitObjects.length - 1; i >= 0; i--) {
+        let obj = osuGame.hitObjects[i];
+        let timeAlive = now - obj.spawnTime;
+        let progress = timeAlive / osuGame.approachTime; // 0.0 to 1.0
+
+        let xPos = (obj.pitch - 48) * keyWidth + (keyWidth / 2);
+        let yPos = obj.y;
+        let targetRadius = 25;
+
+        // If you missed it entirely (the ring closed and you didn't press the key)
+        if (progress > 1.1) {
+            osuGame.combo = 0;
+            spawnOsuHitText(xPos, yPos, "MISS", "#ff3333");
+            osuGame.hitObjects.splice(i, 1);
+            document.getElementById('osu-combo').innerText = osuGame.combo + "x";
+            continue;
+        }
+
+        // Draw Inner Circle
+        ctx.beginPath();
+        ctx.arc(xPos, yPos, targetRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff66aa';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        // Draw Shrinking Approach Ring!
+        let currentRadius = targetRadius + (75 * (1 - progress)); // Shrinks from 100px down to 25px
+        ctx.beginPath();
+        ctx.arc(xPos, yPos, Math.max(targetRadius, currentRadius), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 102, 170, ${progress})`; // Fades in as it approaches
+        ctx.lineWidth = 4;
+        ctx.stroke();
+    }
+
+    // 3. Draw Hit Animations (300, 100, 50)
+    for (let i = osuGame.animations.length - 1; i >= 0; i--) {
+        let anim = osuGame.animations[i];
+        anim.y -= 1; // Float up
+        anim.life -= 0.02; // Fade out
+
+        if (anim.life <= 0) {
+            osuGame.animations.splice(i, 1);
+            continue;
+        }
+
+        ctx.fillStyle = anim.color;
+        ctx.globalAlpha = Math.max(0, anim.life);
+        ctx.font = "bold 24px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(anim.text, anim.x, anim.y);
+        ctx.globalAlpha = 1.0; // Reset alpha
+    }
+
+    // End game if queue and objects are empty
+    if (osuGame.songQueue.length === 0 && osuGame.hitObjects.length === 0) {
+        osuGame.isPlaying = false;
+    }
+}
+osuLoop(); // Start passive loop

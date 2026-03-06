@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reface CS - Master Omnibus (Modular Edition)</title>
+    <script src="https://unpkg.com/@tonejs/midi"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -598,10 +599,15 @@
         </div>
 
         <div class="exp-box" style="margin-bottom: 20px;">
-            <div class="ctrl-row">
-                <h3 class="exp-title" style="color:#00ffcc; border-bottom-color:#00ffcc;">🎹 PIANO CASCADE</h3>
-                <span id="cascade-score"
-                    style="color:#00ffcc; font-size:24px; font-weight:bold; text-shadow: 0 0 10px #00ffcc;">0000</span>
+            <div class="ctrl-row" style="margin-top:10px; margin-bottom:10px;">
+                <span style="color:#00ffcc;">LOAD MIDI SONG</span>
+                <input type="file" id="midi-upload" accept=".mid,.midi" onchange="loadCustomMidi(event)"
+                    style="background:#222; color:#00ffcc; border:1px solid #00ffcc; padding:4px; font-weight:bold; border-radius:4px; width: 60%; cursor:pointer;">
+            </div>
+
+            <div id="midi-filename"
+                style="text-align:center; color:#888; font-size:12px; margin-bottom:10px; font-style:italic;">
+                No custom song loaded. Using Demo Track.
             </div>
 
             <div class="ctrl-row" style="margin-top:10px; margin-bottom:10px;">
@@ -614,15 +620,37 @@
                 </select>
             </div>
 
-            <div class="ctrl-row">
+            <div class="ctrl-row" style="margin-top:10px; gap:5px; display:flex;">
                 <button class="btn-clr" onclick="startCascade()"
-                    style="background:#00ffcc; color:black; font-weight:bold; width:100%;">
+                    style="background:#00ffcc; color:black; font-weight:bold; flex:1;">
                     ▶️ START TRACK
+                </button>
+                <button class="btn-clr" onclick="toggleCascadeFullscreen()"
+                    style="background:#444; color:white; font-weight:bold; flex:1;">
+                    🔲 FULLSCREEN
                 </button>
             </div>
 
             <canvas id="cascade-canvas" width="800" height="400"
                 style="background:#050505; border: 2px solid #222; border-radius: 8px; margin-top: 10px; width: 100%; box-shadow: inset 0 0 30px black;"></canvas>
+        </div>
+
+        <div class="exp-box" style="margin-bottom: 20px;">
+            <div class="ctrl-row">
+                <h3 class="exp-title" style="color:#ff66aa; border-bottom-color:#ff66aa;">🎯 OSU! KEYS</h3>
+                <div style="text-align: right;">
+                    <span id="osu-combo" style="color:#fff; font-size:18px; margin-right: 15px;">0x</span>
+                    <span id="osu-score" style="color:#ff66aa; font-size:24px; font-weight:bold; text-shadow: 0 0 10px #ff66aa;">000000</span>
+                </div>
+            </div>
+            
+            <div class="ctrl-row" style="margin-top:10px;">
+                <button class="btn-clr" onclick="startOsu()" style="background:#ff66aa; color:white; font-weight:bold; width:100%;">
+                    ▶️ CLICK THE CIRCLES (TO THE BEAT)
+                </button>
+            </div>
+            
+            <canvas id="osu-canvas" width="800" height="400" style="background:#111; border: 2px solid #222; border-radius: 8px; margin-top: 10px; width: 100%; display: block; box-shadow: inset 0 0 40px #000;"></canvas>
         </div>
 
         <div class="exp-box" style="margin-bottom: 20px;">
@@ -647,17 +675,20 @@
         <div class="exp-box" style="margin-bottom: 20px;">
             <div class="ctrl-row">
                 <h3 class="exp-title" style="color:#ffcc00; border-bottom-color:#ffcc00;">🎼 SIGHT-READER</h3>
-                <span id="staff-score" style="color:#ffcc00; font-size:24px; font-weight:bold; text-shadow: 0 0 10px #ffcc00;">0</span>
+                <span id="staff-score"
+                    style="color:#ffcc00; font-size:24px; font-weight:bold; text-shadow: 0 0 10px #ffcc00;">0</span>
             </div>
-            
+
             <div class="ctrl-row" style="margin-top:10px;">
-                <button class="btn-clr" onclick="startSightReader()" style="background:#ffcc00; color:black; font-weight:bold; width:100%;">
+                <button class="btn-clr" onclick="startSightReader()"
+                    style="background:#ffcc00; color:black; font-weight:bold; width:100%;">
                     ▶️ START INFINITE SCROLL
                 </button>
             </div>
-            
-            <canvas id="staff-canvas" width="800" height="200" style="background:#f4f4f4; border: 2px solid #222; border-radius: 8px; margin-top: 10px; width: 100%; display: block;"></canvas>
-            
+
+            <canvas id="staff-canvas" width="800" height="200"
+                style="background:#f4f4f4; border: 2px solid #222; border-radius: 8px; margin-top: 10px; width: 100%; display: block;"></canvas>
+
             <p style="font-size:9px; color:#aaa; text-align:center; margin-top:10px; line-height:1.3;">
                 Read the note on the Treble Clef and play it before it hits the left wall.
             </p>
@@ -667,23 +698,29 @@
             <div class="ctrl-row">
                 <h3 class="exp-title" style="color:#ff3333; border-bottom-color:#ff3333;">⏱️ TIMING TRAINER</h3>
             </div>
-            
+
             <div class="ctrl-row" style="margin-top:10px;">
                 <span style="color:#ff3333;">TRAINING BPM</span>
-                <input type="range" id="timing-bpm" min="60" max="240" value="100" oninput="document.getElementById('timing-bpm-val').innerText=this.value">
+                <input type="range" id="timing-bpm" min="60" max="240" value="100"
+                    oninput="document.getElementById('timing-bpm-val').innerText=this.value">
                 <span id="timing-bpm-val" style="color:white; width:30px; text-align:right;">100</span>
             </div>
-            
+
             <div class="ctrl-row" style="margin-top:10px;">
-                <button class="btn-clr" onclick="toggleTimingTrainer()" id="btn-timing" style="background:#ff3333; color:white; font-weight:bold; width:100%;">
+                <button class="btn-clr" onclick="toggleTimingTrainer()" id="btn-timing"
+                    style="background:#ff3333; color:white; font-weight:bold; width:100%;">
                     ▶️ START METRONOME
                 </button>
             </div>
-            
-            <div id="timing-display" style="height:100px; background:#111; margin-top:10px; border-radius:8px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; border:2px solid #333; transition: border-color 0.1s;">
-                <div id="timing-flash" style="position:absolute; top:0; left:0; width:100%; height:100%; background:white; opacity:0; transition:opacity 0.05s;"></div>
-                
-                <div id="timing-feedback" style="position:relative; z-index:2; font-size:32px; font-weight:bold; color:#555; font-family:monospace; letter-spacing: 2px;">
+
+            <div id="timing-display"
+                style="height:100px; background:#111; margin-top:10px; border-radius:8px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; border:2px solid #333; transition: border-color 0.1s;">
+                <div id="timing-flash"
+                    style="position:absolute; top:0; left:0; width:100%; height:100%; background:white; opacity:0; transition:opacity 0.05s;">
+                </div>
+
+                <div id="timing-feedback"
+                    style="position:relative; z-index:2; font-size:32px; font-weight:bold; color:#555; font-family:monospace; letter-spacing: 2px;">
                     WAITING...
                 </div>
             </div>
